@@ -1,0 +1,720 @@
+{
+  "name": "AI Email Agent — Analyze, Report & Reply",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "Attachment analysis:\n\"Inspect Attachments\" classifies the first attachment. Images -> \"Analyze Image\" (AI vision), PDFs -> \"Extract PDF Text\", other/none -> a note. The result feeds AI Analysis. Only the FIRST attachment is analyzed.\n\nDecision routing (3 outcomes):\n- reply -> \"Send Reply\" (auto-sent)\n- draft -> \"Create Draft\" (important, saved for your approval)\n- trash -> \"Move to Trash\" (no reply needed; recoverable 30 days, NOT permanent delete)\n\nEdit the DELIVERY DECISION RULES in the \"AI Analysis\" System Message to tune which emails are replied / drafted / trashed. A report email is always sent to you."
+      },
+      "id": "98315796-badb-44b9-bc54-ebf32907b63a",
+      "name": "Sticky Note 98315796",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        912,
+        656
+      ]
+    },
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "simple": false,
+        "filters": {
+          "includeSpamTrash": false,
+          "readStatus": "unread"
+        },
+        "options": {
+          "dataPropertyAttachmentsPrefixName": "attachment_",
+          "downloadAttachments": true
+        }
+      },
+      "id": "efbe96d7-dc4a-49ac-8f70-82d0feb6b88d",
+      "name": "Gmail Trigger",
+      "type": "n8n-nodes-base.gmailTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        0,
+        400
+      ],
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "hDPUVvrVT8IJi7SB",
+          "name": "Gmail account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const bin = $input.item.binary || {};\nconst keys = Object.keys(bin);\nlet attachmentType = 'none';\nlet attachmentMime = '';\nlet attachmentName = '';\nlet attachmentKey = '';\nif (keys.length > 0) {\n  attachmentKey = keys[0];\n  const meta = bin[attachmentKey] || {};\n  attachmentMime = meta.mimeType || '';\n  attachmentName = meta.fileName || '';\n  const lowerName = attachmentName.toLowerCase();\n  if (attachmentMime.indexOf('image/') === 0) {\n    attachmentType = 'image';\n  } else if (attachmentMime === 'application/pdf' || lowerName.endsWith('.pdf')) {\n    attachmentType = 'pdf';\n  } else {\n    attachmentType = 'other';\n  }\n}\n$input.item.json.attachmentType = attachmentType;\n$input.item.json.attachmentMime = attachmentMime;\n$input.item.json.attachmentName = attachmentName;\n$input.item.json.attachmentKey = attachmentKey;\n$input.item.json.attachmentCount = keys.length;\nreturn $input.item;"
+      },
+      "id": "6f83f2cb-26ed-41a3-a38a-055b798a809d",
+      "name": "Inspect Attachments",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        224,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": false,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.attachmentType }}",
+                    "rightValue": "image",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "image"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": false,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.attachmentType }}",
+                    "rightValue": "pdf",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "pdf"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra",
+          "renameFallbackOutput": "other/none"
+        }
+      },
+      "id": "6fd7c925-9939-4f28-8a81-40e473339c1c",
+      "name": "Route by Attachment",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        448,
+        384
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Describe this email image attachment \"{{ $json.attachmentName }}\" in detail. Extract and transcribe ALL visible text, numbers, tables, invoice/receipt fields, IDs, and any data shown. If it is a document scan, reproduce its contents.",
+        "messages": {
+          "messageValues": [
+            {
+              "type": "HumanMessagePromptTemplate",
+              "messageType": "imageBinary",
+              "binaryImageDataKey": "={{ $json.attachmentKey }}"
+            }
+          ]
+        },
+        "batching": {}
+      },
+      "id": "feb72406-b9ca-47bf-bd6f-6c5d50271d6e",
+      "name": "Analyze Image",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        672,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-5.4"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "id": "8b55c8e9-8ca3-493b-9a48-7497a05df00d",
+      "name": "Vision Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        752,
+        224
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": null,
+          "name": "n8n Connect",
+          "__aiGatewayManaged": true
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a1",
+              "name": "attachmentInfo",
+              "type": "string",
+              "value": "=Image attachment \"{{ $('Inspect Attachments').item.json.attachmentName }}\" ({{ $('Inspect Attachments').item.json.attachmentMime }}) — AI vision analysis:\n{{ $json.text }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "eae4f166-af28-4b3a-8d80-3e72b01d05ce",
+      "name": "Attachment Info (Image)",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1024,
+        112
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "pdf",
+        "binaryPropertyName": "={{ $json.attachmentKey }}",
+        "options": {
+          "joinPages": true
+        }
+      },
+      "id": "e4e1a833-c1c3-4e4c-8bd1-b19ee34fff2c",
+      "name": "Extract PDF Text",
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1.1,
+      "position": [
+        736,
+        400
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a1",
+              "name": "attachmentInfo",
+              "type": "string",
+              "value": "=PDF attachment \"{{ $('Inspect Attachments').item.json.attachmentName }}\" — extracted text:\n{{ $json.text || '(The PDF could not be read/parsed.)' }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "cb02fd78-0d45-4c2d-a16c-af091a2a4ab9",
+      "name": "Attachment Info (PDF)",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1024,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a1",
+              "name": "attachmentInfo",
+              "type": "string",
+              "value": "={{ $json.attachmentCount == 0 ? 'No attachment on this email.' : 'Attachment \"' + $json.attachmentName + '\" (' + $json.attachmentMime + ') is not a supported type for deep analysis (only images and PDFs are analyzed).' }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "045aa59d-2ee8-46ee-8ad3-8a356dbe6b75",
+      "name": "Attachment Info (Other)",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1024,
+        592
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Analyze the following incoming email and its attachment content (if any). Produce the structured analysis and a ready-to-send suggested reply.\n\nFrom: {{ $('Gmail Trigger').item.json.from.value[0].address }}\nSubject: {{ $('Gmail Trigger').item.json.subject }}\nDate: {{ $('Gmail Trigger').item.json.date }}\n\nEmail body:\n{{ $('Gmail Trigger').item.json.text }}\n\nAttachment content (analyzed):\n{{ $json.attachmentInfo }}",
+        "hasOutputParser": true,
+        "messages": {
+          "messageValues": [
+            {
+              "message": "You are an executive email assistant. For each incoming email you: (1) read and understand it including any analyzed attachment content, (2) produce a concise analysis, and (3) write a professional, context-aware reply to the sender.\n\nDELIVERY DECISION RULES (edit this section to change the agent behaviour). Set \"delivery_decision\" to exactly one of \"reply\", \"draft\", or \"trash\":\n- \"reply\": routine emails that clearly need a response and are simple/low-risk — acknowledgements, confirmations, scheduling confirmations, thank-you notes, routine informational answers that need no human judgement. The reply is sent automatically.\n- \"draft\": IMPORTANT or sensitive emails that need a response but require the user to review before sending — anything financial, legal, contractual, containing commitments, pricing, complaints, negotiations, high priority, or anything you are unsure about. The reply is saved to Drafts for the user to approve and send. When in doubt between reply and draft, choose \"draft\".\n- \"trash\": emails that need NO reply and are safe to remove from the inbox — obvious spam, promotional/marketing blasts, automated no-reply notifications, newsletters, and other low-value messages. These are moved to Trash (recoverable for 30 days). NEVER trash anything that looks important, personal, financial, legal, or from a known/real person expecting a response. When in doubt, do NOT trash — choose \"draft\".\nAlways fill \"decision_reason\" explaining the choice. When the decision is \"reply\" or \"draft\", write \"reply_body\" as a complete message ready for the sender, signed generically (e.g. \"Best regards\"). For \"trash\", \"reply_body\" may be empty."
+            }
+          ]
+        },
+        "batching": {}
+      },
+      "id": "cda4c20f-b10c-4c36-acb7-bde72a799e2f",
+      "name": "AI Analysis",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        1248,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-5.4"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "id": "a5519187-5380-426e-8cd2-357afb454ec6",
+      "name": "OpenAI Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        1264,
+        528
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": null,
+          "name": "n8n Connect",
+          "__aiGatewayManaged": true
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\"summary\":\"Short 1-2 sentence summary of the email\",\"category\":\"sales | support | billing | personal | spam | other\",\"priority\":\"high | medium | low\",\"sentiment\":\"positive | neutral | negative\",\"key_points\":[\"key point one\",\"key point two\"],\"reply_subject\":\"Re: original subject\",\"reply_body\":\"Full suggested reply text addressed to the sender\",\"delivery_decision\":\"reply | draft | trash\",\"decision_reason\":\"Why this email should be auto-replied, saved as a draft, or trashed\"}"
+      },
+      "id": "ba38d0c7-93b1-4f61-b865-67d3f9465977",
+      "name": "Analysis Schema",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        1392,
+        528
+      ]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": false,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.output.delivery_decision }}",
+                    "rightValue": "reply",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "reply"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": false,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.output.delivery_decision }}",
+                    "rightValue": "draft",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "draft"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": false,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.output.delivery_decision }}",
+                    "rightValue": "trash",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "trash"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra",
+          "renameFallbackOutput": "draft (fallback)"
+        }
+      },
+      "id": "6a80e962-3596-421b-b457-f99be0f592fe",
+      "name": "Route Decision",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        1600,
+        160
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "reply",
+        "messageId": "={{ $('Gmail Trigger').item.json.id }}",
+        "emailType": "text",
+        "message": "={{ $json.output.reply_body }}",
+        "options": {
+          "appendAttribution": false,
+          "replyToSenderOnly": true
+        }
+      },
+      "id": "a24e2543-6b2b-4580-8076-696ef959cf38",
+      "name": "Send Reply",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1824,
+        48
+      ],
+      "webhookId": "f9282e76-18f7-4e66-aba3-bb957c623c83",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "yqanPvmazR4Zp9rW",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "draft",
+        "subject": "={{ $json.output.reply_subject }}",
+        "message": "={{ $json.output.reply_body }}",
+        "options": {
+          "threadId": "={{ $('Gmail Trigger').item.json.threadId }}",
+          "sendTo": "={{ $('Gmail Trigger').item.json.from.value[0].address }}"
+        }
+      },
+      "id": "5d36a013-f920-41b0-9e20-878ac0806637",
+      "name": "Create Draft",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1824,
+        240
+      ],
+      "webhookId": "0de29d0c-3939-48d6-bbb4-6d3e5d73f8d6",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "yqanPvmazR4Zp9rW",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "addLabels",
+        "messageId": "={{ $('Gmail Trigger').item.json.id }}",
+        "labelIds": [
+          "TRASH"
+        ]
+      },
+      "id": "a27ff648-63a0-4a93-84bb-aa50045b12fb",
+      "name": "Move to Trash",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1824,
+        432
+      ],
+      "webhookId": "bf14cd4a-362e-4406-a3be-cfafa7796ed6",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "yqanPvmazR4Zp9rW",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "binyasin39@gmail.com",
+        "subject": "=Email Report [{{ $json.output.priority }}/{{ $json.output.category }}] — {{ $('Gmail Trigger').item.json.subject }}",
+        "message": "=<h2>Email Analysis Report</h2><p><b>From:</b> {{ $('Gmail Trigger').item.json.from.value[0].address }}<br><b>Subject:</b> {{ $('Gmail Trigger').item.json.subject }}<br><b>Received:</b> {{ $('Gmail Trigger').item.json.date }}<br><b>Attachment:</b> {{ $('Inspect Attachments').item.json.attachmentCount == 0 ? 'none' : $('Inspect Attachments').item.json.attachmentName + ' (' + $('Inspect Attachments').item.json.attachmentType + ')' }}</p><hr><p><b>Summary:</b> {{ $json.output.summary }}</p><p><b>Category:</b> {{ $json.output.category }} &nbsp;|&nbsp; <b>Priority:</b> {{ $json.output.priority }} &nbsp;|&nbsp; <b>Sentiment:</b> {{ $json.output.sentiment }}</p><p><b>Key points:</b></p><ul>{{ ($json.output.key_points || []).map(p => '<li>' + p + '</li>').join('') }}</ul><hr><p><b>Action taken:</b> {{ $json.output.delivery_decision == 'reply' ? 'Replied automatically' : ($json.output.delivery_decision == 'trash' ? 'Moved to Trash (no reply needed)' : 'Saved as draft for your review') }} — {{ $json.output.decision_reason }}</p><p><b>Suggested reply:</b></p><blockquote style=\"border-left:3px solid #ccc;padding-left:10px;color:#444;\">{{ ($json.output.reply_body || '').replace(/\\n/g, '<br>') }}</blockquote>",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "id": "11ca72e6-3c08-484f-8037-e17e10072f6a",
+      "name": "Send Report",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1600,
+        416
+      ],
+      "webhookId": "402d49bc-7b68-483e-a0f3-5be2026b628c",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "yqanPvmazR4Zp9rW",
+          "name": "Gmail account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Gmail Trigger": {
+      "main": [
+        [
+          {
+            "node": "Inspect Attachments",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Inspect Attachments": {
+      "main": [
+        [
+          {
+            "node": "Route by Attachment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route by Attachment": {
+      "main": [
+        [
+          {
+            "node": "Analyze Image",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Extract PDF Text",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Attachment Info (Other)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyze Image": {
+      "main": [
+        [
+          {
+            "node": "Attachment Info (Image)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Vision Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Analyze Image",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Attachment Info (Image)": {
+      "main": [
+        [
+          {
+            "node": "AI Analysis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract PDF Text": {
+      "main": [
+        [
+          {
+            "node": "Attachment Info (PDF)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Attachment Info (PDF)": {
+      "main": [
+        [
+          {
+            "node": "AI Analysis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Attachment Info (Other)": {
+      "main": [
+        [
+          {
+            "node": "AI Analysis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Analysis": {
+      "main": [
+        [
+          {
+            "node": "Route Decision",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Send Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Analysis",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analysis Schema": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "AI Analysis",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route Decision": {
+      "main": [
+        [
+          {
+            "node": "Send Reply",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Create Draft",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Move to Trash",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Create Draft",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "4491a016-6565-433b-b06c-694319e0e25d",
+  "meta": {
+    "instanceId": "1c2c1947a1524a0b02d4e5a8f3eccabf8df70a39d49b858e7568707091481b6d"
+  },
+  "nodeGroups": [],
+  "id": "uGyBXXML82rf3GB6",
+  "tags": []
+}
