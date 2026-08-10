@@ -1,0 +1,14 @@
+{
+  "client_id": "",
+  "client_secret": "",
+  "dev_id": "",
+  "redirect_uri": "Siraj_Uddin_b-SirajUdd-ebayma-owxhwcp",
+  "ru_name": "Siraj_Uddin_binyasin-SirajUdd-ebayma-owxhwcp",
+  "scopes": [
+    "https://api.ebay.com/oauth/api_scope",
+    "https://api.ebay.com/oauth/api_scope/sell.inventory",
+    "https://api.ebay.com/oauth/api_scope/sell.fulfillment",
+    "https://api.ebay.com/oauth/api_scope/commerce.notification.subscription"
+  ],
+  "notes": "Get Client ID and Client Secret from https://developer.ebay.com/ > My Apps"
+}
