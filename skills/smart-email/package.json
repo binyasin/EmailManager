@@ -1,0 +1,19 @@
+{
+  "name": "email-skill",
+  "version": "2.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "better-sqlite3": "^12.11.1",
+    "googleapis": "^173.0.0",
+    "imapflow": "^1.2.10"
+  },
+  "description": "Smart Email — Self-Login Email Assistant with OAuth2 Support",
+  "keywords": ["email", "smart", "assistant", "oauth", "self-login", "gmail", "outlook"],
+  "author": "OpenClaw",
+  "license": "MIT"
+}

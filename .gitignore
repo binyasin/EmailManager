@@ -1,0 +1,28 @@
+# ================== SENSITIVE - NEVER COMMIT ==================
+.env
+skills/smart-email/data/config.json
+skills/smart-email/data/email.db
+email-access.json
+lock.json
+*.db
+*.sqlite
+
+# ================== OpenClaw internals ==================
+.clawhub/
+openclaw-workspace-state.json
+
+# ================== Generated / temp / cache ==================
+__pycache__/
+*.pyc
+*.wav
+temp_attachments/
+media/
+node_modules/
+
+# ================== Large/external directories ==================
+marketing_agent/
+tools/
+
+# ================== OS junk ==================
+.DS_Store
+Thumbs.db

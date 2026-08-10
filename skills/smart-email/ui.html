@@ -1,0 +1,826 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Smart Email — Self-Login</title>
+  <style>
+    :root {
+      --primary: #2563eb;
+      --primary-dark: #1e40af;
+      --success: #10b981;
+      --error: #ef4444;
+      --warning: #f59e0b;
+      --bg: #f8fafc;
+      --card: #ffffff;
+      --text: #1e293b;
+      --text-muted: #64748b;
+      --border: #e2e8f0;
+      --shadow: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24);
+      --radius: 8px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    }
+
+    body {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .container {
+      background: var(--card);
+      border-radius: var(--radius);
+      box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04);
+      width: 100%;
+      max-width: 500px;
+      overflow: hidden;
+    }
+
+    .header {
+      background: var(--primary);
+      color: white;
+      padding: 30px 20px;
+      text-align: center;
+    }
+
+    .header h1 {
+      font-size: 24px;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+    }
+
+    .header p {
+      opacity: 0.9;
+      font-size: 14px;
+    }
+
+    .content {
+      padding: 30px;
+    }
+
+    .tab-container {
+      display: flex;
+      margin-bottom: 30px;
+      border-bottom: 2px solid var(--border);
+    }
+
+    .tab {
+      flex: 1;
+      padding: 12px 20px;
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 14px;
+      transition: all 0.3s ease;
+      border-bottom: 2px solid transparent;
+    }
+
+    .tab.active {
+      color: var(--primary);
+      border-bottom-color: var(--primary);
+    }
+
+    .tab:hover:not(.active) {
+      color: var(--text);
+      background: var(--bg);
+    }
+
+    .tab-content {
+      display: none;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+
+    .form-group {
+      margin-bottom: 20px;
+    }
+
+    .form-group label {
+      display: block;
+      margin-bottom: 8px;
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--text);
+    }
+
+    .form-group input {
+      width: 100%;
+      padding: 12px 15px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      font-size: 14px;
+      transition: all 0.3s ease;
+    }
+
+    .form-group input:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+    }
+
+    .btn {
+      width: 100%;
+      padding: 12px;
+      background: var(--primary);
+      color: white;
+      border: none;
+      border-radius: var(--radius);
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+    }
+
+    .btn:hover {
+      background: var(--primary-dark);
+      transform: translateY(-1px);
+      box-shadow: var(--shadow);
+    }
+
+    .btn:disabled {
+      background: var(--text-muted);
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .btn.google {
+      background: #4285f4;
+    }
+
+    .btn.google:hover {
+      background: #357ae8;
+    }
+
+    .btn.microsoft {
+      background: #00a4ef;
+    }
+
+    .btn.microsoft:hover {
+      background: #0098d9;
+    }
+
+    .alert {
+      padding: 12px 15px;
+      border-radius: var(--radius);
+      margin-bottom: 20px;
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .alert.success {
+      background: rgba(16, 185, 129, 0.1);
+      color: #065f46;
+      border: 1px solid rgba(16, 185, 129, 0.2);
+    }
+
+    .alert.error {
+      background: rgba(239, 68, 68, 0.1);
+      color: #991b1b;
+      border: 1px solid rgba(239, 68, 68, 0.2);
+    }
+
+    .alert.warning {
+      background: rgba(245, 158, 11, 0.1);
+      color: #92400e;
+      border: 1px solid rgba(245, 158, 11, 0.2);
+    }
+
+    .status {
+      padding: 15px;
+      border-radius: var(--radius);
+      margin-bottom: 20px;
+      font-size: 14px;
+      display: none;
+    }
+
+    .status.active {
+      display: block;
+    }
+
+    .spinner {
+      width: 20px;
+      height: 20px;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-top: 2px solid white;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      display: inline-block;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    .result {
+      margin-top: 20px;
+      padding: 15px;
+      background: var(--bg);
+      border-radius: var(--radius);
+      font-size: 14px;
+    }
+
+    .result.hidden {
+      display: none;
+    }
+
+    .copy-btn {
+      background: var(--success);
+      color: white;
+      border: none;
+      padding: 8px 12px;
+      border-radius: var(--radius);
+      cursor: pointer;
+      font-size: 12px;
+      margin-left: 10px;
+    }
+
+    .copy-btn:hover {
+      background: #059669;
+    }
+
+    .info-box {
+      background: rgba(37, 99, 235, 0.05);
+      border-left: 4px solid var(--primary);
+      padding: 15px;
+      margin: 20px 0;
+      border-radius: 0 var(--radius) var(--radius) 0;
+      font-size: 14px;
+    }
+
+    .step-indicator {
+      display: flex;
+      align-items: center;
+      margin: 20px 0;
+    }
+
+    .step {
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      background: var(--border);
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      margin-right: 10px;
+    }
+
+    .step.active {
+      background: var(--primary);
+      color: white;
+    }
+
+    .step-line {
+      width: 2px;
+      height: 30px;
+      background: var(--border);
+      margin-left: 15px;
+    }
+
+    .provider-selector {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 15px;
+      margin-bottom: 20px;
+    }
+
+    .provider-card {
+      border: 2px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      text-align: center;
+    }
+
+    .provider-card:hover {
+      border-color: var(--primary);
+      transform: translateY(-2px);
+      box-shadow: var(--shadow);
+    }
+
+    .provider-card.selected {
+      border-color: var(--primary);
+      background: rgba(37, 99, 235, 0.05);
+    }
+
+    .provider-icon {
+      font-size: 32px;
+      margin-bottom: 10px;
+    }
+
+    .provider-name {
+      font-weight: 500;
+      margin-bottom: 5px;
+    }
+
+    .provider-desc {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .logout-btn {
+      background: var(--error);
+      color: white;
+      border: none;
+      padding: 8px 15px;
+      border-radius: var(--radius);
+      cursor: pointer;
+      font-size: 12px;
+      margin-top: 10px;
+    }
+
+    .logout-btn:hover {
+      background: #dc2626;
+    }
+
+    @media (max-width: 480px) {
+      .container {
+        margin: 10px;
+      }
+
+      .provider-selector {
+        grid-template-columns: 1fr;
+      }
+
+      .header {
+        padding: 20px 15px;
+      }
+
+      .content {
+        padding: 20px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>📧 Smart Email</h1>
+      <p>Secure Email Self-Login</p>
+    </div>
+
+    <div class="content">
+      <!-- Login Tab -->
+      <div id="login-tab" class="tab-content active">
+        <h2 style="margin-bottom: 20px; color: var(--text);">Welcome</h2>
+        <p style="margin-bottom: 20px; color: var(--text-muted);">Choose your email provider to get started:</p>
+
+        <div class="provider-selector">
+          <div class="provider-card" onclick="selectProvider('google')">
+            <div class="provider-icon">🔵</div>
+            <div class="provider-name">Google</div>
+            <div class="provider-desc">Gmail, Google Workspace</div>
+          </div>
+          <div class="provider-card" onclick="selectProvider('microsoft')">
+            <div class="provider-icon">💻</div>
+            <div class="provider-name">Microsoft</div>
+            <div class="provider-desc">Outlook, Office 365</div>
+          </div>
+        </div>
+
+        <div id="manual-provider" style="display: none;">
+          <div class="info-box">
+            <strong>Manual Setup:</strong> For email providers that don't support OAuth2, you can set up password-based authentication.
+          </div>
+
+          <div class="form-group">
+            <label for="email-input">Email Address</label>
+            <input type="email" id="email-input" placeholder="your@email.com" />
+          </div>
+
+          <div class="form-group">
+            <label for="password-input">App Password</label>
+            <input type="password" id="password-input" placeholder="Enter your app password" />
+          </div>
+
+          <button class="btn" onclick="manualLogin()" id="manual-login-btn">
+            <span id="manual-btn-text">Login with Password</span>
+          </button>
+        </div>
+
+        <div id="oauth-provider" style="display: none;">
+          <div class="alert warning">
+            <strong>Security Notice:</strong> This will open your browser for authentication. No credentials are stored.
+          </div>
+
+          <div class="step-indicator">
+            <div class="step active">1</div>
+            <div class="step-line"></div>
+            <div class="step">2</div>
+            <div class="step-line"></div>
+            <div class="step">3</div>
+          </div>
+
+          <p style="margin-bottom: 15px; font-size: 14px;">1. Click the button below to open browser authentication</p>
+          <p style="margin-bottom: 20px; font-size: 14px;">2. Sign in to your email provider</p>
+          <p style="margin-bottom: 20px; font-size: 14px;">3. Copy the authorization code and paste below</p>
+
+          <button class="btn google" id="google-login-btn" style="display: none;" onclick="startGoogleLogin()">
+            Login with Google
+          </button>
+          <button class="btn microsoft" id="microsoft-login-btn" style="display: none;" onclick="startMicrosoftLogin()">
+            Login with Microsoft
+          </button>
+
+          <div id="code-input-section" style="display: none; margin-top: 20px;">
+            <div class="form-group">
+              <label for="auth-code-input">Authorization Code</label>
+              <input type="text" id="auth-code-input" placeholder="Paste the authorization code here" />
+            </div>
+            <div class="form-group">
+              <label for="state-input">State Parameter (Optional)</label>
+              <input type="text" id="state-input" placeholder="If provided during initial step" />
+            </div>
+            <button class="btn" onclick="completeOAuthLogin()" id="complete-oauth-btn">
+              Complete Authentication
+            </button>
+          </div>
+        </div>
+
+        <div id="status-message" class="status"></div>
+      </div>
+
+      <!-- Authenticated Tab -->
+      <div id="authenticated-tab" class="tab-content">
+        <h2 style="margin-bottom: 20px; color: var(--text);">✅ Authentication Complete</h2>
+
+        <div class="alert success">
+          <strong>Success!</strong> You have been authenticated successfully.
+        </div>
+
+        <div class="result" id="auth-result">
+          <div><strong>Email:</strong> <span id="result-email"></span></div>
+          <div><strong>Provider:</strong> <span id="result-provider"></span></div>
+          <div><strong>Token:</strong> <span id="result-token"></span> <button class="copy-btn" onclick="copyToken()">Copy</button></div>
+          <div><strong>Expires:</strong> <span id="result-expires"></span></div>
+        </div>
+
+        <button class="logout-btn" onclick="logout()">Logout and Start Over</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let currentProvider = null;
+    let authSession = null;
+    let pollingInterval = null;
+
+    function selectProvider(provider) {
+      currentProvider = provider;
+
+      // Update UI
+      document.querySelectorAll('.provider-card').forEach(card => {
+        card.classList.remove('selected');
+      });
+
+      if (provider === 'manual') {
+        document.getElementById('manual-provider').style.display = 'block';
+        document.getElementById('oauth-provider').style.display = 'none';
+        document.getElementById('google-login-btn').style.display = 'none';
+        document.getElementById('microsoft-login-btn').style.display = 'none';
+      } else {
+        document.getElementById('manual-provider').style.display = 'none';
+        document.getElementById('oauth-provider').style.display = 'block';
+
+        if (provider === 'google') {
+          document.getElementById('google-login-btn').style.display = 'block';
+          document.getElementById('microsoft-login-btn').style.display = 'none';
+        } else if (provider === 'microsoft') {
+          document.getElementById('google-login-btn').style.display = 'none';
+          document.getElementById('microsoft-login-btn').style.display = 'block';
+        }
+      }
+
+      // Update all provider cards
+      document.querySelectorAll('.provider-card').forEach(card => {
+        const providerName = card.getAttribute('onclick').includes('google') ? 'google' : 'microsoft';
+        if (providerName === provider) {
+          card.classList.add('selected');
+        }
+      });
+    }
+
+    function showStatus(message, type = 'warning') {
+      const status = document.getElementById('status-message');
+      status.className = `status active alert ${type}`;
+      status.innerHTML = `<strong>${type.charAt(0).toUpperCase() + type.slice(1)}:</strong> ${message}`;
+    }
+
+    function hideStatus() {
+      const status = document.getElementById('status-message');
+      status.className = 'status';
+      status.style.display = 'none';
+    }
+
+    async function startGoogleLogin() {
+      const email = document.getElementById('email-input').value.trim();
+      if (!email || !email.includes('@')) {
+        showStatus('Please enter a valid email address', 'error');
+        return;
+      }
+
+      try {
+        showStatus('Starting Google authentication...', 'warning');
+
+        const response = await fetch('/api/accounts/google-oauth-start', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email }),
+        });
+
+        const data = await response.json();
+
+        if (data.action === 'google_oauth_pending') {
+          authSession = {
+            email: email,
+            provider: 'google',
+            state: data.state,
+          };
+
+          showStatus(`Google authentication initiated. Please visit: ${data.auth_url}`, 'success');
+          document.getElementById('code-input-section').style.display = 'block';
+
+          // Start polling for completion
+          pollOAuthCallback(data.state, 'google');
+        } else {
+          showStatus(data.error || 'Failed to start Google authentication', 'error');
+        }
+      } catch (error) {
+        showStatus(`Error: ${error.message}`, 'error');
+      }
+    }
+
+    async function startMicrosoftLogin() {
+      const email = document.getElementById('email-input').value.trim();
+      if (!email || !email.includes('@')) {
+        showStatus('Please enter a valid email address', 'error');
+        return;
+      }
+
+      try {
+        showStatus('Starting Microsoft authentication...', 'warning');
+
+        const response = await fetch('/api/accounts/microsoft-oauth-start', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email }),
+        });
+
+        const data = await response.json();
+
+        if (data.action === 'microsoft_oauth_pending') {
+          authSession = {
+            email: email,
+            provider: 'microsoft',
+            state: data.state,
+            device_code: data.device_code,
+          };
+
+          showStatus(`Microsoft authentication initiated. Code: ${data.user_code}`, 'success');
+          showStatus(`Please visit ${data.verification_uri} and enter code: ${data.user_code}`, 'warning');
+          document.getElementById('code-input-section').style.display = 'block';
+
+          // Start polling for completion
+          pollOAuthCallback(data.state, 'microsoft');
+        } else {
+          showStatus(data.error || 'Failed to start Microsoft authentication', 'error');
+        }
+      } catch (error) {
+        showStatus(`Error: ${error.message}`, 'error');
+      }
+    }
+
+    function pollOAuthCallback(state, provider) {
+      pollOAuthCallbackInterval = setInterval(async () => {
+        try {
+          const response = await fetch('/api/accounts/oauth-poll', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              email: authSession.email,
+              device_code: authSession.device_code,
+              state: state,
+            }),
+          });
+
+          const data = await response.json();
+
+          if (data.success) {
+            clearInterval(pollOAuthCallbackInterval);
+            completeLoginFlow(data);
+          } else if (data.error && data.error.includes('timeout')) {
+            clearInterval(pollOAuthCallbackInterval);
+            showStatus('Authentication timed out. Please try again.', 'error');
+          }
+        } catch (error) {
+          // Continue polling
+        }
+      }, 3000);
+    }
+
+    async function completeOAuthLogin() {
+      const email = document.getElementById('email-input').value.trim();
+      const code = document.getElementById('auth-code-input').value.trim();
+      const state = document.getElementById('state-input').value.trim();
+
+      if (!email || !code) {
+        showStatus('Please enter both email and authorization code', 'error');
+        return;
+      }
+
+      try {
+        showStatus('Completing authentication...', 'warning');
+
+        const endpoint = currentProvider === 'google' ? 
+          '/api/accounts/google-oauth-callback' : 
+          '/api/accounts/microsoft-oauth-poll';
+
+        const body = currentProvider === 'google' ?
+          JSON.stringify({ email, code, state }) :
+          JSON.stringify({ email, device_code: authSession.device_code, state });
+
+        const response = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: body,
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+          completeLoginFlow(data);
+        } else {
+          showStatus(data.error || 'Authentication failed', 'error');
+        }
+      } catch (error) {
+        showStatus(`Error: ${error.message}`, 'error');
+      }
+    }
+
+    async function manualLogin() {
+      const email = document.getElementById('email-input').value.trim();
+      const password = document.getElementById('password-input').value;
+
+      if (!email || !email.includes('@')) {
+        showStatus('Please enter a valid email address', 'error');
+        return;
+      }
+
+      if (!password) {
+        showStatus('Please enter your password', 'error');
+        return;
+      }
+
+      try {
+        showStatus('Setting up manual authentication...', 'warning');
+
+        const response = await fetch('/api/accounts/add', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email: email,
+            password: password,
+            auth: 'password',
+          }),
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+          completeLoginFlow(data);
+        } else {
+          showStatus(data.error || 'Authentication failed', 'error');
+        }
+      } catch (error) {
+        showStatus(`Error: ${error.message}`, 'error');
+      }
+    }
+
+    function completeLoginFlow(data) {
+      // Switch to authenticated tab
+      document.getElementById('login-tab').classList.remove('active');
+      document.getElementById('authenticated-tab').classList.add('active');
+
+      document.getElementById('result-email').textContent = data.email;
+      document.getElementById('result-provider').textContent = data.provider || data.type || 'manual';
+      document.getElementById('result-token').textContent = data.token || 'session_token';
+      document.getElementById('result-expires').textContent = '15 minutes';
+
+      document.getElementById('auth-result').classList.remove('hidden');
+
+      hideStatus();
+
+      // Store token for API usage
+      localStorage.setItem('email_auth_token', data.token || 'session_token');
+      localStorage.setItem('email_auth_email', data.email);
+    }
+
+    function logout() {
+      // Clear session
+      authSession = null;
+      if (pollingInterval) {
+        clearInterval(pollingInterval);
+      }
+
+      // Reset UI
+      document.getElementById('login-tab').classList.add('active');
+      document.getElementById('authenticated-tab').classList.remove('active');
+      document.getElementById('manual-provider').style.display = 'none';
+      document.getElementById('oauth-provider').style.display = 'none';
+      document.getElementById('code-input-section').style.display = 'none';
+
+      // Clear form
+      document.getElementById('email-input').value = '';
+      document.getElementById('password-input').value = '';
+      document.getElementById('auth-code-input').value = '';
+      document.getElementById('state-input').value = '';
+
+      // Clear storage
+      localStorage.removeItem('email_auth_token');
+      localStorage.removeItem('email_auth_email');
+
+      hideStatus();
+      document.getElementById('auth-result').classList.add('hidden');
+    }
+
+    function copyToken() {
+      const tokenElement = document.getElementById('result-token').textContent;
+      navigator.clipboard.writeText(tokenElement).then(() => {
+        const btn = event.target;
+        btn.textContent = 'Copied!';
+        setTimeout(() => {
+          btn.textContent = 'Copy';
+        }, 2000);
+      });
+    }
+
+    // Initialize with manual provider selected
+    selectProvider('manual');
+
+    // Check for existing session
+    window.addEventListener('load', () => {
+      const savedToken = localStorage.getItem('email_auth_token');
+      const savedEmail = localStorage.getItem('email_auth_email');
+
+      if (savedToken && savedEmail) {
+        // Check if session is valid with API
+        fetch('/api/accounts', {
+          method: 'GET',
+          headers: { 'Content-Type': 'application/json' },
+        })
+        .then(response => response.json())
+        .then(data => {
+          const accountExists = data.accounts.some(acc => acc.email === savedEmail);
+          if (accountExists) {
+            // Switch to authenticated tab
+            document.getElementById('login-tab').classList.remove('active');
+            document.getElementById('authenticated-tab').classList.add('active');
+            document.getElementById('auth-result').classList.remove('hidden');
+            document.getElementById('result-email').textContent = savedEmail;
+          }
+        })
+        .catch(() => {
+          // If API fails, clear saved session
+          localStorage.removeItem('email_auth_token');
+          localStorage.removeItem('email_auth_email');
+        });
+      }
+    });
+
+    // Auto-save form data
+    document.getElementById('email-input').addEventListener('input', () => {
+      localStorage.setItem('saved_email', document.getElementById('email-input').value);
+    });
+
+    window.addEventListener('beforeunload', () => {
+      if (pollingInterval) {
+        clearInterval(pollingInterval);
+      }
+    });
+  </script>
+</body>
+</html>
