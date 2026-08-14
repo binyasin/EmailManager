@@ -1,7 +1,6 @@
 # ================== SENSITIVE - NEVER COMMIT ==================
 .env
-skills/smart-email/data/config.json
-skills/smart-email/data/email.db
+skills/smart-email/data/
 email-access.json
 lock.json
 *.db
